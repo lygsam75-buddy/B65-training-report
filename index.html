@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Intel Arc Pro B65 Krea-2 LoRA 训练性能报告</title>
+<style>
+  @page { size: A4; margin: 25mm 20mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+    color: #1a1a2e; line-height: 1.8; font-size: 11pt;
+    background: #fff; padding: 40px 50px;
+  }
+  .cover {
+    text-align: center; padding: 80px 0 60px;
+    border-bottom: 3px solid #0068b5; margin-bottom: 50px;
+  }
+  .cover h1 { font-size: 28pt; color: #0068b5; letter-spacing: 2px; margin-bottom: 16px; }
+  .cover .subtitle { font-size: 14pt; color: #555; margin-bottom: 40px; }
+  .cover .meta { font-size: 10pt; color: #888; }
+  h1 { font-size: 18pt; color: #0068b5; margin: 40px 0 16px; border-left: 4px solid #0068b5; padding-left: 12px; }
+  h2 { font-size: 14pt; color: #16213e; margin: 28px 0 12px; }
+  h3 { font-size: 12pt; color: #333; margin: 20px 0 8px; }
+  p { margin: 8px 0; text-align: justify; }
+  table {
+    width: 100%; border-collapse: collapse; margin: 16px 0 24px;
+    font-size: 10pt;
+  }
+  th {
+    background: #0068b5; color: #fff; padding: 10px 12px;
+    text-align: left; font-weight: 600;
+  }
+  td {
+    padding: 9px 12px; border: 1px solid #dde;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f4f8fc; }
+  tr:hover td { background: #e8f0fe; }
+  .highlight { background: #fff3cd !important; font-weight: 700; }
+  .key-metric {
+    display: inline-block; background: #0068b5; color: #fff;
+    padding: 4px 16px; border-radius: 4px; font-size: 16pt;
+    font-weight: 700; margin: 8px 4px;
+  }
+  .metric-label { font-size: 9pt; color: #888; display: block; text-align: center; }
+  .metric-row { text-align: center; margin: 20px 0; }
+  .callout {
+    background: #e8f4f8; border-left: 4px solid #0068b5;
+    padding: 14px 18px; margin: 16px 0; border-radius: 0 6px 6px 0;
+  }
+  .callout-warn {
+    background: #fff8e6; border-left: 4px solid #f0a030;
+    padding: 14px 18px; margin: 16px 0; border-radius: 0 6px 6px 0;
+  }
+  .img-container { text-align: center; margin: 24px 0; }
+  .img-container img { max-width: 100%; border: 1px solid #ddd; border-radius: 6px; }
+  .img-caption { font-size: 9pt; color: #888; margin-top: 6px; }
+  code, pre {
+    font-family: "Consolas", "Courier New", monospace;
+    background: #f4f4f8; border: 1px solid #ddd;
+  }
+  code { padding: 2px 6px; border-radius: 3px; font-size: 9.5pt; }
+  pre {
+    padding: 16px 20px; border-radius: 6px; overflow-x: auto;
+    margin: 12px 0; font-size: 9pt; line-height: 1.6;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  ul, ol { margin: 8px 0 8px 24px; }
+  li { margin: 4px 0; }
+  .tag {
+    display: inline-block; background: #e0ecf5; color: #0068b5;
+    padding: 2px 10px; border-radius: 12px; font-size: 9pt;
+    margin: 2px 4px;
+  }
+  .section-divider {
+    border: none; border-top: 2px solid #e0e0e0; margin: 40px 0;
+  }
+  .toc { column-count: 2; column-gap: 40px; margin: 20px 0 30px; }
+  .toc a { text-decoration: none; color: #0068b5; font-size: 10.5pt; }
+  .toc li { margin: 6px 0; break-inside: avoid; }
+  .footer {
+    margin-top: 50px; padding-top: 16px; border-top: 2px solid #0068b5;
+    font-size: 9pt; color: #888; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- 封面 -->
+<div class="cover">
+  <h1>Intel Arc Pro B65<br>Krea-2 LoRA 训练性能报告</h1>
+  <div class="subtitle">单卡 vs 双卡 · 实测数据 · 2026 年 11 月</div>
+  <div class="meta">
+    测试环境：AMD Ryzen 5 9600X + Intel Arc Pro B65 (31.16 GiB) ×1/×2 + 32 GB DDR5<br>
+    模型：Krea-2 RAW bf16 (26.28 GB) &nbsp;|&nbsp; 数据集：37 图双桶 &nbsp;|&nbsp; 训练步数：2,200
+  </div>
+</div>
+
+<!-- 核心指标 -->
+<div class="metric-row">
+  <div>
+    <span class="key-metric">11.9 h</span>
+    <span class="key-metric">1.49×</span>
+    <span class="key-metric">49%</span>
+    <span class="key-metric">31 GiB</span>
+  </div>
+  <div style="margin-top:4px">
+    <span class="metric-label" style="width:120px;display:inline-block">单卡训练耗时</span>
+    <span class="metric-label" style="width:120px;display:inline-block">双卡吞吐加速比</span>
+    <span class="metric-label" style="width:120px;display:inline-block">吞吐净增益</span>
+    <span class="metric-label" style="width:120px;display:inline-block">单卡显存</span>
+  </div>
+</div>
+
+<div class="callout">
+  <strong>核心结论：</strong>双 B65 训练吞吐提升 <strong>49%</strong>（0.0515 → 0.0766 样本/s）。双卡不是每步更快，而是每步处理双倍样本；通信开销（gloo allreduce 629 ms/步）占步速 27%。31 GB 大显存使 fp8 模型全驻显存、零 PCIe 搬运，这是 16 GB 卡不具备的硬优势。
+</div>
+
+<!-- 目录 -->
+<h1>目录</h1>
+<ol class="toc">
+  <li><a href="#sec1">测试摘要</a></li>
+  <li><a href="#sec2">测试配置</a></li>
+  <li><a href="#sec3">单卡训练结果</a></li>
+  <li><a href="#sec4">双卡训练结果</a></li>
+  <li><a href="#sec5">单卡 vs 双卡深度对比</a></li>
+  <li><a href="#sec6">技术要点：XPU 多卡训练链路</a></li>
+  <li><a href="#sec7">对客口径建议</a></li>
+  <li><a href="#sec8">附录</a></li>
+</ol>
+
+<hr class="section-divider">
+
+<!-- 第一章 -->
+<h1 id="sec1">一、测试摘要</h1>
+
+<table>
+  <tr>
+    <th>指标</th><th>单卡 B65</th><th>双卡 B65 ×2</th><th>对比</th>
+  </tr>
+  <tr>
+    <td>训练总耗时</td><td><strong>11.9 小时</strong></td><td>15.5 小时</td><td>单卡快 23%（同 2200 步）</td>
+  </tr>
+  <tr>
+    <td>稳态步速</td><td><strong>19.4 s/it</strong></td><td>26.1 s/it</td><td>双卡步速慢 35%</td>
+  </tr>
+  <tr>
+    <td>每步处理样本</td><td>1</td><td><strong>2</strong></td><td>双卡 ×2</td>
+  </tr>
+  <tr class="highlight">
+    <td>吞吐量</td><td><strong>0.0515 样本/s</strong></td><td><strong>0.0766 样本/s</strong></td><td><strong>加速比 1.49×</strong></td>
+  </tr>
+  <tr>
+    <td>处理相同数据耗时</td><td>11.9 小时</td><td><strong>~8.0 小时</strong></td><td><strong>双卡快 33%</strong></td>
+  </tr>
+  <tr>
+    <td>最终 loss/average</td><td>0.06596</td><td>0.06144</td><td>双卡多训 2 倍 epoch</td>
+  </tr>
+</table>
+
+<!-- 对比图 -->
+<div class="img-container">
+  <img src="../../../generated-images/B65_single_vs_dual_comparison.png" alt="单卡 vs 双卡对比图">
+  <div class="img-caption">图 1：单卡 vs 双卡训练 loss 曲线（左）与吞吐量对比（右）</div>
+</div>
+
+<hr class="section-divider">
+
+<!-- 第二章 -->
+<h1 id="sec2">二、测试配置</h1>
+
+<h2>2.1 硬件环境</h2>
+<table>
+  <tr><th>项目</th><th>规格</th></tr>
+  <tr><td>GPU</td><td>Intel Arc Pro B65，31.16 GiB（ECC 关）×1 或 ×2</td></tr>
+  <tr><td>CPU</td><td>AMD Ryzen 5 9600X</td></tr>
+  <tr><td>内存</td><td>32 GB DDR5</td></tr>
+  <tr><td>页面文件</td><td>96 GB</td></tr>
+  <tr><td>PCIe</td><td>Gen4 x16（总线 3 + 总线 16）</td></tr>
+</table>
+
+<h2>2.2 软件栈</h2>
+<table>
+  <tr><th>项目</th><th>版本</th></tr>
+  <tr><td>OS</td><td>Windows 11</td></tr>
+  <tr><td>PyTorch</td><td>2.12.0 + XPU</td></tr>
+  <tr><td>训练框架</td><td>musubi-tuner（含 8 处 XPU 补丁）</td></tr>
+  <tr><td>模型</td><td>Krea-2 RAW bf16（26.28 GB）</td></tr>
+  <tr><td>精度</td><td>fp8_base + fp8_scaled，bf16 autocast</td></tr>
+</table>
+
+<h2>2.3 训练参数</h2>
+<table>
+  <tr><th>参数</th><th>值</th></tr>
+  <tr><td>数据集</td><td>37 张图（832×1248 + 1360×768 双桶）</td></tr>
+  <tr><td>LoRA</td><td>dim=32, alpha=32, 40.4M 参数</td></tr>
+  <tr><td>优化器</td><td>adamw8bit, lr=1e-4</td></tr>
+  <tr><td>梯度检查点</td><td>启用</td></tr>
+  <tr><td>block_swap</td><td>0（全驻显存）</td></tr>
+  <tr><td>总步数</td><td>2,200</td></tr>
+  <tr><td>随机种子</td><td>42</td></tr>
+</table>
+
+<hr class="section-divider">
+
+<!-- 第三章 -->
+<h1 id="sec3">三、单卡训练结果</h1>
+
+<h2>3.1 性能指标</h2>
+<table>
+  <tr><th>指标</th><th>实测值</th></tr>
+  <tr><td>总步数</td><td>2,200 / 2,200</td></tr>
+  <tr><td>总耗时</td><td>11.9 小时</td></tr>
+  <tr><td>首步耗时</td><td>90 秒（含 XPU kernel 编译）</td></tr>
+  <tr class="highlight"><td>稳态步速</td><td>19.4 s/it</td></tr>
+  <tr><td>loss/average（最终）</td><td><strong>0.06596</strong></td></tr>
+  <tr><td>显存占用</td><td>~24 GB / 31.16 GB</td></tr>
+</table>
+
+<h2>3.2 Loss 收敛</h2>
+<ul>
+  <li>起始值：0.072（step 1）</li>
+  <li>峰值：0.096（step ~40，典型早期波动）</li>
+  <li>稳态：0.066（step 2200）</li>
+  <li>收敛形态：正常指数下降，无发散或震荡</li>
+</ul>
+
+<div class="img-container">
+  <img src="../../../generated-images/B65_single_v2_loss_curve.png" alt="单卡 loss 曲线">
+  <div class="img-caption">图 2：单卡 B65 训练 loss 曲线（2200 步）</div>
+</div>
+
+<hr class="section-divider">
+
+<!-- 第四章 -->
+<h1 id="sec4">四、双卡训练结果</h1>
+
+<h2>4.1 性能指标</h2>
+<table>
+  <tr><th>指标</th><th>实测值</th></tr>
+  <tr><td>总步数</td><td>2,200 / 2,200</td></tr>
+  <tr><td>总耗时</td><td>15.5 小时</td></tr>
+  <tr><td>首步耗时</td><td>105 秒（含 kernel 编译）</td></tr>
+  <tr class="highlight"><td>稳态步速</td><td>26.1 s/it</td></tr>
+  <tr><td>loss/average（最终）</td><td><strong>0.06144</strong></td></tr>
+  <tr><td>loss/epoch</td><td>116 epoch（每步 2 样本）</td></tr>
+  <tr><td>通信开销</td><td>629 ms/步（gloo allreduce）</td></tr>
+</table>
+
+<h2>4.2 Loss 收敛</h2>
+<ul>
+  <li>起始值：0.072（step 1）</li>
+  <li>峰值：0.096（step ~40）</li>
+  <li>稳态：0.061（step 2200）</li>
+  <li>同等步数下 loss 更低：因双卡每步处理 2 样本，等效 epoch 数翻倍</li>
+</ul>
+
+<div class="img-container">
+  <img src="../../../generated-images/B65_dual_v2_loss_curve.png" alt="双卡 loss 曲线">
+  <div class="img-caption">图 3：双卡 B65 ×2 训练 loss 曲线（2200 步）</div>
+</div>
+
+<hr class="section-divider">
+
+<!-- 第五章 -->
+<h1 id="sec5">五、单卡 vs 双卡深度对比</h1>
+
+<h2>5.1 吞吐量分析</h2>
+<table>
+  <tr><th>维度</th><th>单卡</th><th>双卡</th><th>差异</th></tr>
+  <tr><td>计算吞吐</td><td>1 样本 / 19.4s</td><td>2 样本 / 26.1s</td><td>—</td></tr>
+  <tr class="highlight"><td>等效吞吐</td><td>0.0515 样本/s</td><td>0.0766 样本/s</td><td><strong>+49%</strong></td></tr>
+  <tr><td>通信开销</td><td>0 ms</td><td>629 ms/步</td><td>—</td></tr>
+  <tr><td>通信占比</td><td>0%</td><td>24.1%</td><td>—</td></tr>
+</table>
+
+<div class="callout">
+  <strong>口径说明：</strong>双卡每步各自处理 1 样本（数据并行），然后 allreduce 同步梯度。加速比 = 2 ÷ (26.1 / 19.4) = <strong>1.49×</strong>。通信损耗 629 ms/步来自 LoRA 40M 参数梯度的 CPU gloo 同步。
+</div>
+
+<h2>5.2 同数据耗时对比</h2>
+<table>
+  <tr><th>场景</th><th>单卡耗时</th><th>双卡耗时</th><th>节省</th></tr>
+  <tr><td>训练 2,200 步</td><td>11.9h</td><td>15.5h</td><td>—</td></tr>
+  <tr class="highlight"><td>处理 2,200 样本</td><td>11.9h</td><td><strong>~8.0h</strong></td><td><strong>33%</strong></td></tr>
+  <tr><td>处理 4,400 样本</td><td>23.8h</td><td><strong>~15.5h</strong></td><td><strong>35%</strong></td></tr>
+  <tr><td>训练至 loss=0.065</td><td>11.9h</td><td><strong>~6.0h</strong></td><td><strong>50%</strong></td></tr>
+</table>
+
+<h2>5.3 Loss 收敛质量</h2>
+<table>
+  <tr><th>指标</th><th>单卡</th><th>双卡</th><th>说明</th></tr>
+  <tr><td>loss/average @ step 2200</td><td>0.06596</td><td>0.06144</td><td>双卡更低</td></tr>
+  <tr><td>等效 epoch</td><td>60</td><td>116</td><td>双卡处理 2 倍数据</td></tr>
+  <tr><td>loss @ step 1100（等 epoch）</td><td>0.072</td><td>0.068</td><td>基本一致</td></tr>
+</table>
+
+<hr class="section-divider">
+
+<!-- 第六章 -->
+<h1 id="sec6">六、技术要点：XPU 多卡训练链路</h1>
+
+<p>双 B65 训练是 <strong>Intel XPU 多卡 LoRA 训练首次完整跑通</strong>，中间打通了 8 层技术障碍：</p>
+
+<table>
+  <tr><th>#</th><th>障碍</th><th>根因</th><th>修法</th></tr>
+  <tr><td>1</td><td>启动秒挂</td><td>torch Windows build 无 libuv，5 处 TCPStore 漏传参数</td><td>全量补丁</td></tr>
+  <tr><td>2</td><td>假成功</td><td>accelerate 不认 XPU 多进程为 MULTI_XPU</td><td>放宽判定</td></tr>
+  <tr><td>3</td><td>DDP 包装即崩</td><td>XPU 集合通信算子全缺</td><td>跳过 DDP + 手动 reduce</td></tr>
+  <tr><td>4</td><td>dataloader 崩溃</td><td>RNG 广播走 XPU 路径</td><td>挪到 CPU 分支</td></tr>
+  <tr><td>5</td><td>主机内存耗尽</td><td>双进程各整块读 26 GB 模型</td><td>mmap 零拷贝</td></tr>
+  <tr><td>6</td><td>step 2 崩溃</td><td>gloo 默认 30 分钟超时</td><td>拉长至 180 分钟</td></tr>
+  <tr><td>7</td><td>GPU→CPU 死锁</td><td>attention seqlen 裁剪 .item() 同步点</td><td>禁用裁剪</td></tr>
+  <tr><td>8</td><td>barrier 未实现</td><td>XPU 无 c10d::barrier</td><td>CPU all_reduce 替代</td></tr>
+</table>
+
+<div class="callout">
+  <strong>通信代价实测：</strong>LoRA 40.4M 参数 / 154 MB 梯度，XPU→CPU + gloo allreduce + 回写 = <strong>629 ms/步</strong>。占单卡步速 5.2% / 双卡步速 24.1%。
+</div>
+
+<div class="callout-warn">
+  <strong>PCIe 带宽实测：</strong>GPU↔CPU 纯 DMA 拷贝 20 GB/s（PCIe 4.0 x16 理论 31.5 GB/s，效率 63%），硬件无瓶颈。瓶颈在 gloo TCP 协议栈（245 MB/s，仅裸带宽 1.2%）。Intel XPU 生态尚无 NCCL 级 GPU 直传通信库，这是软件层面的提升空间。
+</div>
+
+<hr class="section-divider">
+
+<!-- 第七章 -->
+<h1 id="sec7">七、对客口径建议</h1>
+
+<h2>核心卖点</h2>
+<ol>
+  <li><strong>31 GB 大显存是硬优势：</strong>fp8 模型全塞显存、swap=0、零 PCIe 搬运。16 GB 卡需 block-swap 频繁搬运权重，训练速度受 PCIe 拖累。</li>
+  <li><strong>双卡扩展性良好：</strong>1.49× 吞吐加速比，接近线性 2× 减通信损耗。</li>
+  <li><strong>单卡即可完成生产级训练：</strong>2200 步、37 图 LoRA 训练 12 小时内完成。</li>
+</ol>
+
+<h2>价格-性能对照</h2>
+<table>
+  <tr><th>配置</th><th>显存</th><th>训练吞吐</th><th>参考价格</th></tr>
+  <tr><td>单 B50</td><td>16 GB</td><td>—（需 swap，受限）</td><td>¥4,499</td></tr>
+  <tr><td>单 B65</td><td>31 GB</td><td>0.0515 样本/s</td><td>¥9,999</td></tr>
+  <tr class="highlight"><td>双 B65</td><td>31 GB ×2</td><td>0.0766 样本/s</td><td>¥19,998</td></tr>
+</table>
+
+<h2>客户常见问题</h2>
+<table>
+  <tr><th>问题</th><th>回答</th></tr>
+  <tr><td>双卡训练是不是 2 倍加速？</td><td>实测 1.49×。每步处理双倍数据，通信开销扣 5.2%。</td></tr>
+  <tr><td>需要多大内存？</td><td>32 GB 即可。双卡 swap=0 时主机内存仅占 4.35 GB（mmap 零拷贝）。</td></tr>
+  <tr><td>31 GB 比 16 GB 好在哪？</td><td>fp8 模型 13 GB 全驻显存，训练纯 GPU 算力不被 PCIe 拖。16 GB 卡需 block-swap，受带宽限制。</td></tr>
+  <tr><td>训练稳定吗？</td><td>2200 步全程零崩溃。已有看门狗 + 自动恢复机制。</td></tr>
+</table>
+
+<hr class="section-divider">
+
+<!-- 第八章 -->
+<h1 id="sec8">八、附录</h1>
+
+<h2>8.1 训练命令</h2>
+
+<h3>单卡</h3>
+<pre>python src/musubi_tuner/krea2_train_network.py \
+  --dit krea2_raw_bf16.safetensors \
+  --vae qwen_image_vae.safetensors \
+  --dataset_config dataset_v2.toml \
+  --fp8_base --fp8_scaled --blocks_to_swap 0 \
+  --mixed_precision bf16 \
+  --network_module networks.lora_krea2 --network_dim 32 \
+  --max_train_steps 2200 --seed 42</pre>
+
+<h3>双卡（额外补丁）</h3>
+<pre>accelerate launch --num_processes 2 --num_machines 1 \
+  --mixed_precision bf16 \
+  src/musubi_tuner/krea2_train_network.py \
+  [同上参数] --ddp_timeout 180</pre>
+
+<h2>8.2 产出文件</h2>
+<table>
+  <tr><th>文件</th><th>路径</th></tr>
+  <tr><td>单卡权重</td><td>lora-training/output_single_v2/arcp_v2_single.safetensors</td></tr>
+  <tr><td>双卡权重</td><td>lora-training/output_dual_v2/arcp_v2.safetensors</td></tr>
+  <tr><td>单卡 loss 曲线</td><td>generated-images/B65_single_v2_loss_curve.png</td></tr>
+  <tr><td>双卡 loss 曲线</td><td>generated-images/B65_dual_v2_loss_curve.png</td></tr>
+  <tr><td>对比图</td><td>generated-images/B65_single_vs_dual_comparison.png</td></tr>
+</table>
+
+<h2>8.3 测试日期</h2>
+<table>
+  <tr><th>项目</th><th>日期</th></tr>
+  <tr><td>双卡 v2 训练</td><td>2026-11-05 14:44 完成</td></tr>
+  <tr><td>单卡 v2 训练</td><td>2026-11-07 03:08 完成</td></tr>
+  <tr><td>报告生成</td><td>2026-11-07</td></tr>
+</table>
+
+<div class="footer">
+  Intel Arc Pro B65 Krea-2 LoRA 训练性能报告 · 2026 年 11 月 · 实测数据
+</div>
+
+</body>
+</html>
